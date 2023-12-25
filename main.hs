@@ -25,7 +25,7 @@ createEmptyStack = []
 This function converts a stack, provided as input, into a string.
 It concatenates stack elements using commas with the "intercalate" function.
 If an element is an integer, it is converted to a string using the "show" function.
-If the element is boolean, its value will be transformed into the string "True" or "False".
+If an element is a string, its value (either "tt" or "ff") is converted to "True" or "False" respectively.
 -}
 stack2Str :: Stack -> String 
 stack2Str = intercalate "," . map (either show (\b -> if b == "tt" then "True" else "False"))
@@ -36,7 +36,7 @@ createEmptyState = []
 {-
 This function converts a state, provided as input, into a string.
 It concatenates state elements using commas with the "intercalate" function.
-Each element in the state is transformed into a string of the form "variable=value", where the variable is the key and the value is either an integer converted to a string or a boolean converted to "True" or "False".
+Each element in the state is transformed into a string of the form "variable=value", where the variable is the key and the value is either an integer converted to a string or the strings "tt" or "ff" converted to "True" or "False", respectively.
 The entries are sorted based on variable names for consistent output.
 -}
 state2Str :: State -> String 
