@@ -6,69 +6,88 @@ import Data.List
 -- Part 1
 
 -- Do not modify our definition of Inst and Code
+
+-- Definition of the machine's instructions
 data Inst =
   Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
   Branch Code Code | Loop Code Code
   deriving Show
-type Code = [Inst]
+type Code = [Inst] -- A type synonym representing a sequence of instructions used in the machine.
 
-type Stack = [Either Integer Bool]
+type Stack = [Either Integer String] -- A type that represents the machine’s stack
 
-type State = [(String, Either Integer Bool)]
+type State = [(String, Either Integer String)] -- A type that represents the machine’s state
 
-createEmptyStack :: Stack
+createEmptyStack :: Stack -- Function that returns an empty machine’s stack
 createEmptyStack = []
 
-stack2Str :: Stack -> String
-stack2Str = intercalate "," . map (either show (\b -> if b then "True" else "False"))
+{-
+This function converts a stack, provided as input, into a string.
+It concatenates stack elements using commas with the "intercalate" function.
+If an element is an integer, it is converted to a string using the "show" function.
+If the element is boolean, its value will be transformed into the string "True" or "False".
+-}
+stack2Str :: Stack -> String 
+stack2Str = intercalate "," . map (either show (\b -> if b == "tt" then "True" else "False"))
 
-createEmptyState :: State
+createEmptyState :: State -- Function that returns an empty machine’s state
 createEmptyState = []
 
-state2Str :: State -> String
-state2Str = intercalate "," . map (\(var, val) -> var ++ "=" ++ (either show (\b -> if b then "True" else "False") val)) . sort
+{-
+This function converts a state, provided as input, into a string.
+It concatenates state elements using commas with the "intercalate" function.
+Each element in the state is transformed into a string of the form "variable=value", where the variable is the key and the value is either an integer converted to a string or a boolean converted to "True" or "False".
+The entries are sorted based on variable names for consistent output.
+-}
+state2Str :: State -> String 
+state2Str = intercalate "," . map (\(var, val) -> var ++ "=" ++ (either show (\b -> if b == "tt" then "True" else "False") val)) . sort
 
+{-
+This function takes as input a tuple of the form (Code, Stack, State) and returns a tuple of the same form.
+The first element of the input tuple is a list of instructions, the second element is a stack and the third element is a state.
+The function executes the instructions in the list, updating the stack and the state accordingly.
+The function is recursive and the execution of the instructions is done by pattern matching on the first instruction in the list.
+-}
 run :: (Code, Stack, State) -> (Code, Stack, State)
 run ([], stack, state) = ([], stack, state)
 run ((Push i):code, stack, state) = run (code, (Left i):stack, state)
-run ((Tru):code, stack, state) = run (code, (Right True):stack, state)
-run ((Fals):code, stack, state) = run (code, (Right False):stack, state)
+run ((Tru):code, stack, state) = run (code, (Right "tt"):stack, state)
+run ((Fals):code, stack, state) = run (code, (Right "ff"):stack, state)
 run ((Add):code, (Left i1):(Left i2):stack, state) = run (code, (Left (i1 + i2)):stack, state)
 run ((Sub):code, (Left i1):(Left i2):stack, state) = run (code, (Left (i1 - i2)):stack, state)
 run ((Mult):code, (Left i1):(Left i2):stack, state) = run (code, (Left (i1 * i2)):stack, state)
 run ((Equ):code, (val1):(val2):stack, state) =
     case (val1, val2) of
-        (Left i1, Left i2) -> run (code, (Right (i1 == i2)):stack, state)
-        (Right b1, Right b2) -> run (code, (Right (b1 == b2)):stack, state)
+        (Left i1, Left i2) -> run (code, (Right (if i1 == i2 then "tt" else "ff")):stack, state)
+        (Right b1, Right b2) -> run (code, (Right (if b1 == b2 then "tt" else "ff")):stack, state)
         _ -> error "Run-time error"
 run ((Le):code, (val1):(val2):stack, state) =
     case (val1, val2) of
-        (Left i1, Left i2) -> run (code, (Right (i1 <= i2)):stack, state)
+        (Left i1, Left i2) -> run (code, (Right (if i1 <= i2 then "tt" else "ff")):stack, state)
         _ -> error "Run-time error"
 run ((And):code, (val1):(val2):stack, state) =
     case (val1, val2) of
-        (Right b1, Right b2) -> run (code, (Right (b1 && b2)):stack, state)
+        (Right b1, Right b2) -> run (code, (Right (if b1 == "tt" && b2 == "tt" then "tt" else "ff")):stack, state)
         _ -> error "Run-time error"
 run ((Neg):code, (val):stack, state) =
     case val of
-        (Right b) -> run (code, (Right (not b)):stack, state)
+        (Right b) -> run (code, (Right (if b == "tt" then "ff" else "tt")):stack, state)
         _ -> error "Run-time error"
 run ((Store var):code, val:stack, state) = 
-    let newState = filter ((/= var) . fst) state
-    in run (code, stack, (var, val):newState)
-run ((Fetch var):code, stack, state) = case lookup var state of
+    let newState = (var, val) : filter ((/= var) . fst) state
+    in run (code, stack, newState)
+run ((Fetch var):code, stack, state) = 
+    case lookup var state of
     Just val -> run (code, val:stack, state)
     Nothing -> error "Run-time error"
 run ((Noop):code, stack, state) = run (code, stack, state)
 run ((Branch code1 code2):code, (Right b):stack, state) =
-    if b then run (code1 ++ code, stack, state)
+    if b == "tt" then run (code1 ++ code, stack, state)
     else run (code2 ++ code, stack, state)
 run ((Branch _ _):code, stack, state) = error "Run-time error"
-run ((Loop code1 code2):code, (Right b):stack, state) =
-    if b then run (code1 ++ (Loop code1 code2):code, stack, state)
-    else run (code2 ++ code, stack, state)
-run ((Loop _ _):code, stack, state) = error "Run-time error"
-
+run ((Loop code1 code2):code, stack, state) =
+    let branchInstruction = Branch (code2 ++ [Loop code1 code2]) [Noop]
+    in run (code1 ++ [branchInstruction], stack, state)
 
 -- To help you test your assembler
 testAssembler :: Code -> (String, String)
