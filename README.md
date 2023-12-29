@@ -15,6 +15,14 @@ Este projeto divide-se em duas partes. Em ambas, começámos pela definição do
 
 ### Parte 1
 
+Na Parte 1, para além da definição das instruções da máquina já fornecida pelos professores:
 
+```haskell
+data Inst =
+  Push Integer | Add | Mult | Sub | Tru | Fals | Equ | Le | And | Neg | Fetch String | Store String | Noop |
+  Branch Code Code | Loop Code Code
+  deriving Show
+type Code = [Inst] 
+```
 
 ### Parte 2 
