@@ -1,4 +1,7 @@
 import Data.List
+import Data.Data 
+import Data.Char 
+import Distribution.Simple.Build (build)
 
 -- PFL 2023/24 - Haskell practical assignment quickstart
 -- Updated on 15/12/2023
@@ -115,22 +118,154 @@ testAssembler code = (stack2Str stack, state2Str state)
 
 -- TODO: Define the types Aexp, Bexp, Stm and Program
 
--- compA :: Aexp -> Code
-compA = undefined -- TODO
+-- Data type for arithmetic expressions
+data Aexp = VarAexp String | IntAexp Integer | AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp
+    deriving (Show)
 
--- compB :: Bexp -> Code
-compB = undefined -- TODO
+-- Data type for boolean expressions
+data Bexp = BoolBexp Bool | EqBexp Aexp Aexp | LeBexp Aexp Aexp | NotBexp Bexp | AndBexp Bexp Bexp
+    deriving (Show)
 
--- compile :: Program -> Code
-compile = undefined -- TODO
+-- Data type for statements
+data Stm = AssignStm String Aexp | SeqStm Stm Stm | IfStm Bexp Stm Stm | WhileStm Bexp Stm | NoopStm
+  deriving (Show)
+type Program = [Stm] 
 
--- parse :: String -> Program
-parse = undefined -- TODO
+-- function that generates the code for an arithmetic expression
+compA :: Aexp -> Code
+compA (VarAexp var) = [Fetch var]  
+compA (IntAexp n) = [Push n]       
+compA (AddAexp e1 e2) = compA e2 ++ compA e1 ++ [Add]  
+compA (SubAexp e1 e2) = compA e2 ++ compA e1 ++ [Sub]  
+compA (MultAexp e1 e2) = compA e2 ++ compA e1 ++ [Mult]  
+
+-- function that generates the code for a boolean expression
+compB :: Bexp -> Code
+compB (BoolBexp b) = if b then [Tru] else [Fals]  
+compB (EqBexp e1 e2) = compA e2 ++ compA e1 ++ [Equ]  
+compB (LeBexp e1 e2) = compA e2 ++ compA e1 ++ [Le]   
+compB (NotBexp b) = compB b ++ [Neg]  
+compB (AndBexp b1 b2) = compB b2 ++ compB b1 ++ [And]  
+
+-- function that generates the code for a statement
+compStm :: Stm -> Code
+compStm (AssignStm var aexp) = compA aexp ++ [Store var]
+compStm (SeqStm stm1 stm2) = compStm stm1 ++ compStm stm2
+compStm (IfStm bexp stm1 stm2) = let code1 = compStm stm1
+                                     code2 = compStm stm2
+                                     codeB = compB bexp
+                                 in codeB ++ [Branch code1 code2]
+compStm (WhileStm bexp stm) = let codeS = compStm stm
+                                  codeB = compB bexp
+                              in [Loop codeB codeS]
+compStm NoopStm = [Noop]
+
+-- function that compiles the entire program (list of statements), generating the code for the program
+compile :: Program -> Code
+compile = concatMap compStm
+
+-- function that takes a string and returns a list of tokens
+lexer :: String -> [String]
+lexer [] = []
+lexer ('=':'=':cs) = "==" : lexer cs
+lexer ('<':'=':cs) = "<=" : lexer cs
+lexer (':':'=':cs) = ":=" : lexer cs
+lexer (c:cs)
+  | c `elem` "+-*/=<>()" = [c] : lexer cs  
+  | isDigit c =
+    let (num, rest) = span isDigit (c:cs)
+    in num : lexer rest  
+  | isLower c =
+    let (var, rest) = span (\x -> isAlphaNum x || x == '_') (c:cs)
+    in var : lexer rest  
+  | isAlpha c =
+    let (keyword, rest) = span isAlpha (c:cs)
+        keyword' = case keyword of
+          "while" -> "while"
+          "if" -> "if"
+          "then" -> "then"
+          "else" -> "else"
+          _ -> keyword
+    in keyword' : lexer rest  
+  | c == ';' = ";" : lexer cs  
+  | isSpace c = lexer cs  
+  | otherwise = lexer cs  
+
+-- function that takes a list of tokens and returns a tuple with the arithmetic expression and the remaining tokens
+parseAexp :: [String] -> (Aexp, [String])
+parseAexp (num:"-":rest) 
+  | all isDigit num = let (aexp, rest1) = parseAexp rest in (SubAexp (IntAexp (read num)) aexp, rest1)
+  | otherwise = let (aexp, rest1) = parseAexp rest in (SubAexp (VarAexp num) aexp, rest1)
+parseAexp (token:"+":rest) 
+  | all isDigit token = let (aexp, rest1) = parseAexp rest in (AddAexp (IntAexp (read token)) aexp, rest1)
+  | otherwise = let (aexp, rest1) = parseAexp rest in (AddAexp (VarAexp token) aexp, rest1)
+parseAexp (token:"*":rest) 
+  | all isDigit token = let (aexp, rest1) = parseAexp rest in (MultAexp (IntAexp (read token)) aexp, rest1)
+  | otherwise = let (aexp, rest1) = parseAexp rest in (MultAexp (VarAexp token) aexp, rest1)
+parseAexp (var:rest)
+  | all isDigit var = (IntAexp (read var), rest)
+  | otherwise = (VarAexp var, rest)
+parseAexp tokens = error "Syntax error: Invalid arithmetic expression"
+
+-- function that takes a list of tokens and returns a tuple with the boolean expression and the remaining tokens
+parseBexp :: [String] -> (Bexp, [String])
+parseBexp tokens =
+  let (aexp1, rest1) = parseAexp tokens
+      (op:rest2) = rest1
+  in case op of
+    "==" -> let (aexp2, rest3) = parseAexp rest2 in (EqBexp aexp1 aexp2, rest3)
+    "<=" -> let (aexp2, rest3) = parseAexp rest2 in (LeBexp aexp1 aexp2, rest3)
+    _ -> error "Syntax error: Invalid boolean expression"
+
+-- function that takes a list of tokens and returns a tuple with the statement and the remaining tokens
+parseStm :: [String] -> (Stm, [String])
+parseStm [] = (NoopStm, [])
+parseStm ("if":rest) = 
+  let (bexp, "then":rest1) = parseBexp rest
+      (stm1, ";":"else":rest2) = parseStm rest1
+      (stm2, rest3) = parseStm rest2
+  in (IfStm bexp stm1 stm2, rest3)
+parseStm ("while" : rest) =
+  let (bexp, doToken : rest1) = parseBexp rest
+      (stm, rest2) = parseStm rest1
+  in if doToken /= "do"
+     then error "Syntax error: 'while' statement not properly formed"
+     else (WhileStm bexp stm, rest2)
+parseStm (var:":=":rest) =
+  let (aexp, rest1) = parseAexp rest
+  in (AssignStm var aexp, rest1)
+parseStm (";":rest) = parseStm rest
+parseStm ("(":rest) = 
+  let (block, rest1) = parseBlock rest
+  in (block, rest1)
+parseStm _ = error "Syntax error: Invalid statement"
+
+-- function that parses a block of statements enclosed in parentheses
+parseBlock :: [String] -> (Stm, [String])
+parseBlock [] = error "Syntax error: Missing closing parenthesis"
+parseBlock (";":")":rest) = (NoopStm, rest)
+parseBlock tokens = 
+  let (stm, rest1) = parseStm tokens
+  in if null rest1 || head rest1 == ")"
+     then (stm, if null rest1 then [] else tail rest1)
+     else let (stmtList, rest2) = parseBlock rest1
+          in (SeqStm stm stmtList, rest2)
+
+-- function that takes a list of tokens and returns a list of statements
+buildData :: [String] -> Program
+buildData [] = []
+buildData tokens = 
+  let (stm, rest) = parseStm tokens
+  in stm : buildData rest
+
+-- function that takes a string and returns a list of statements
+parse :: String -> Program
+parse = buildData . lexer
 
 -- To help you test your parser
--- testParser :: String -> (String, String)
--- testParser programCode = (stack2Str stack, store2Str store)
---  where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyStore)
+testParser :: String -> (String, String)
+testParser programCode = (stack2Str stack, state2Str store)
+    where (_,stack,store) = run(compile (parse programCode), createEmptyStack, createEmptyState)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
