@@ -15,7 +15,7 @@ Este projeto divide-se em duas partes. Em ambas, começámos pela definição do
 
 ### Parte 1
 
-Na Parte 1, para além da definição das instruções da máquina já fornecida pelos professores:
+Na Parte 1, para além da definição das instruções da máquina já fornecida pelos professores (`data Inst`), criámos dois tipos de dados (`Stack` e `State`). Os elementos da Stack podem ser do tipo Integer (número positivo ou negativo) ou String ("tt" ou "ff", verdadeiro ou falso, respetivamente). Os elementos do State são pares da forma (variável, valor), onde a variável é uma String e o valor, à semelhança dos elementos da Stack, é um Integer ou uma String.
 
 ```haskell
 data Inst =
@@ -24,5 +24,16 @@ data Inst =
   deriving Show
 type Code = [Inst] 
 ```
+
+```haskell
+type Stack = [Either Integer String] -- A type that represents the machine’s stack
+
+type State = [(String, Either Integer String)] -- A type that represents the machine’s state
+```
+
+
+
+
+
 
 ### Parte 2 
