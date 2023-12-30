@@ -31,9 +31,12 @@ type Stack = [Either Integer String] -- A type that represents the machine’s s
 type State = [(String, Either Integer String)] -- A type that represents the machine’s state
 ```
 
+Funções implementadas na Parte 1:
 
-
-
-
+- `createEmptyStack :: Stack`: Função que retorna uma pilha da máquina vazia
+- `createEmptyState :: State`: Função que retorna um estado da máquina vazio
+- `stack2Str :: Stack -> String`: Função que converte uma Stack numa string. A função utiliza a função map para aplicar a transformação necessária a cada elemento da stack, juntamente com a função intercalate "," que concatena os elementos, separando-os por vírgula. 
+- `state2Str :: State -> String`: Função que converte um State numa string. A função utiliza a função map para aplicar a transformação necessária a cada elemento da stack, juntamente com a função intercalate "," que concatena os elementos, separando-os por vírgula. Adicionalmente, utiliza a função sort para ordenar os elementos por ordem alfabética, onde a chave de ordenação é a string que corresponde ao nome da variável.
+- `run :: (Code, Stack, State) -> (Code, Stack, State)`: Função que executa as instruções (Code), atualizando a Stack e o State de acordo. Na implementação desta função utilizámos uma lógica por casos, sendo cada caso um tipo de instrução diferente. 
 
 ### Parte 2 
