@@ -40,3 +40,21 @@ Funções implementadas na Parte 1:
 - `run :: (Code, Stack, State) -> (Code, Stack, State)`: Função que executa as instruções (Code), atualizando a Stack e o State de acordo. Na implementação desta função utilizámos uma lógica por casos, sendo cada caso um tipo de instrução diferente. 
 
 ### Parte 2 
+
+Na Parte 2, definimos três tipos `Aexp` (expressões aritméticas), `Bexp` (expressões booleanas) e `Stm`(declarações). 
+
+```haskell
+data Aexp = VarAexp String | IntAexp Integer | AddAexp Aexp Aexp | SubAexp Aexp Aexp | MultAexp Aexp Aexp
+    deriving (Show)
+
+data Bexp = BoolBexp Bool | EqBexp Aexp Aexp | LeBexp Aexp Aexp | NotBexp Bexp | AndBexp Bexp Bexp
+    deriving (Show)
+
+data Stm = AssignStm String Aexp | SeqStm Stm Stm | IfStm Bexp Stm Stm | WhileStm Bexp Stm | NoopStm
+  deriving (Show)
+type Program = [Stm] 
+```
+
+Nota: Na definição das declarações: `AssignStm String Aexp` corresponde à atribuição de um valor (Aexp) a uma variável (String); `SeqStm Stm Stm` corresponde a uma sequência de instruções; `IfStm Bexp Stm Stm` corresponde a uma declaração if (branch da Parte 1); `WhileStm Bexp Stm` corresponde à declaração de um ciclo while (loop da Parte 1); NoopStm corresponde a uma instrução que não faz nada.
+
+Funções implementadas na Parte 2:
