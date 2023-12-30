@@ -58,3 +58,15 @@ type Program = [Stm]
 Nota: Na definição das declarações: `AssignStm String Aexp` corresponde à atribuição de um valor (Aexp) a uma variável (String); `SeqStm Stm Stm` corresponde a uma sequência de instruções; `IfStm Bexp Stm Stm` corresponde a uma declaração if (branch da Parte 1); `WhileStm Bexp Stm` corresponde à declaração de um ciclo while (loop da Parte 1); NoopStm corresponde a uma instrução que não faz nada.
 
 Funções implementadas na Parte 2:
+
+- `compile :: Program -> Code`: Função que recebe um programa (lista de declarações Stm) e compila-o para o código de baixo nível (Code), para que depois possa ser interpretado pela função run. Esta função utiliza a função compStm para compilar cada declaração individual do programa.
+- `compStm :: Stm -> Code`: Função que gera o código para um declaração individual Stm.
+- `compA :: Aexp -> Code`: Função que gera o código para um expressão aritmética.
+- `compB :: Bexp -> Code`: Função que gera o código para uma expressão booleana.
+- `parse :: String -> Program`: Função que transforma uma string, fornecida como input, num programa (lista de declarações Stm). Esta função resulta da composição da função lexer e da função buildData.
+- `buildData :: [String] -> Program`: Função que transforma uma lista de tokens gerada pela função lexer
+- `lexer :: String -> [String]`:
+- `parseStm :: [String] -> (Stm, [String])`:
+- `parseAexp :: [String] -> (Aexp, [String])`:
+- `parseBexp :: [String] -> (Bexp, [String])`:
+- `parseBlock :: [String] -> (Stm, [String])`: 
