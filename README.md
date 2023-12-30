@@ -64,9 +64,9 @@ Funções implementadas na Parte 2:
 - `compA :: Aexp -> Code`: Função que gera o código para um expressão aritmética.
 - `compB :: Bexp -> Code`: Função que gera o código para uma expressão booleana.
 - `parse :: String -> Program`: Função que transforma uma string, fornecida como input, num programa (lista de declarações Stm). Esta função resulta da composição da função lexer e da função buildData.
-- `buildData :: [String] -> Program`: Função que transforma uma lista de tokens gerada pela função lexer
-- `lexer :: String -> [String]`:
-- `parseStm :: [String] -> (Stm, [String])`:
-- `parseAexp :: [String] -> (Aexp, [String])`:
-- `parseBexp :: [String] -> (Bexp, [String])`:
-- `parseBlock :: [String] -> (Stm, [String])`: 
+- `buildData :: [String] -> Program`: Função que transforma uma lista de tokens (';', ':=', '+', 'True', '5', por exemplo) gerada pela função lexer num programa (lista de declarações Stm).
+- `lexer :: String -> [String]`: Função que gera uma lista de tokens a partir da string fornecida como input.
+- `parseStm :: [String] -> (Stm, [String])`: Função que analisa uma lista de tokens e retorna uma instrução (Stm) juntamente com os tokens restantes. Esta função é chamda na função buildData.
+- `parseAexp :: [String] -> (Aexp, [String])`: Função que analisa uma lista de tokens e retorna uma expressão aritmética (Aexp) juntamente com os tokens restantes.
+- `parseBexp :: [String] -> (Bexp, [String])`: Função que analisa uma lista de tokens e retorna uma expressão booleana (Bexp) juntamente com os tokens restantes.
+- `parseBlock :: [String] -> (Stm, [String])`: Função que analisa um bloco de instruções encerradas por parênteses e retorna a instrução correspondente (Stm) juntamente com os tokens restantes.
