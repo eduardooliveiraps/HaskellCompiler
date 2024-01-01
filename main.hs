@@ -63,7 +63,8 @@ run ((Equ):code, (val1):(val2):stack, state) =
     case (val1, val2) of
         (Left i1, Left i2) -> run (code, (Right (if i1 == i2 then "tt" else "ff")):stack, state)
         (Right b1, Right b2) -> run (code, (Right (if b1 == b2 then "tt" else "ff")):stack, state)
-        _ -> error "Run-time error"
+        (Right _, _) -> error "Run-time error: Invalid comparison with boolean value"
+        (_, Right _) -> error "Run-time error: Invalid comparison with boolean value"
 run ((Le):code, (val1):(val2):stack, state) =
     case (val1, val2) of
         (Left i1, Left i2) -> run (code, (Right (if i1 <= i2 then "tt" else "ff")):stack, state)
@@ -81,8 +82,8 @@ run ((Store var):code, val:stack, state) =
     in run (code, stack, newState)
 run ((Fetch var):code, stack, state) = 
     case lookup var state of
-    Just val -> run (code, val:stack, state)
-    Nothing -> error "Run-time error"
+        Just val -> run (code, val:stack, state)
+        Nothing -> error $ "Run-time error: Variable '" ++ var ++ "' not found in state"
 run ((Noop):code, stack, state) = run (code, stack, state)
 run ((Branch code1 code2):code, (Right b):stack, state) =
     if b == "tt" then run (code1 ++ code, stack, state)
@@ -191,21 +192,45 @@ lexer (c:cs)
   | isSpace c = lexer cs  
   | otherwise = lexer cs  
 
--- function that takes a list of tokens and returns a tuple with the arithmetic expression and the remaining tokens
+-- Update parseAexp to handle parentheses
 parseAexp :: [String] -> (Aexp, [String])
-parseAexp (num:"-":rest) 
-  | all isDigit num = let (aexp, rest1) = parseAexp rest in (SubAexp (IntAexp (read num)) aexp, rest1)
-  | otherwise = let (aexp, rest1) = parseAexp rest in (SubAexp (VarAexp num) aexp, rest1)
-parseAexp (token:"+":rest) 
-  | all isDigit token = let (aexp, rest1) = parseAexp rest in (AddAexp (IntAexp (read token)) aexp, rest1)
-  | otherwise = let (aexp, rest1) = parseAexp rest in (AddAexp (VarAexp token) aexp, rest1)
-parseAexp (token:"*":rest) 
-  | all isDigit token = let (aexp, rest1) = parseAexp rest in (MultAexp (IntAexp (read token)) aexp, rest1)
-  | otherwise = let (aexp, rest1) = parseAexp rest in (MultAexp (VarAexp token) aexp, rest1)
-parseAexp (var:rest)
-  | all isDigit var = (IntAexp (read var), rest)
-  | otherwise = (VarAexp var, rest)
-parseAexp tokens = error "Syntax error: Invalid arithmetic expression"
+parseAexp tokens = parseAexp' tokens 0
+
+parseAexp' :: [String] -> Int -> (Aexp, [String])
+parseAexp' tokens level
+  | level == 3 = parseFactor tokens
+  | otherwise =
+      let (left, tokens') = parseAexp' tokens (level + 1)
+      in buildExpression left tokens' level
+
+buildExpression :: Aexp -> [String] -> Int -> (Aexp, [String])
+buildExpression left (op:tokens) level
+  | op == operator level =
+      let (right, tokens') = parseAexp' tokens (level + 1)
+      in buildExpression (applyOperator level left right) tokens' level
+  | otherwise = (left, op:tokens)
+buildExpression left [] _ = (left, [])
+
+operator :: Int -> String
+operator level = ["+", "-", "*"] !! level
+
+applyOperator :: Int -> Aexp -> Aexp -> Aexp
+applyOperator level left right
+  | level == 0 = AddAexp left right
+  | level == 1 = SubAexp left right
+  | otherwise = MultAexp left right
+
+parseFactor :: [String] -> (Aexp, [String])
+parseFactor ("(":rest) =
+  let (aexp, rest1) = parseAexp rest
+  in case rest1 of
+    ")":rest2 -> (aexp, rest2)
+    _ -> error "Syntax error: Missing closing parenthesis"
+parseFactor (num:tokens)
+  | all isDigit num = (IntAexp (read num), tokens)
+  | otherwise = (VarAexp num, tokens)
+parseFactor [] = error "Syntax error: Unexpected end of input"
+
 
 -- function that takes a list of tokens and returns a tuple with the boolean expression and the remaining tokens
 parseBexp :: [String] -> (Bexp, [String])
@@ -213,17 +238,20 @@ parseBexp tokens =
   let (aexp1, rest1) = parseAexp tokens
       (op:rest2) = rest1
   in case op of
+    "not" -> let (bexp, rest3) = parseBexp rest2 in (NotBexp bexp, rest3)
     "==" -> let (aexp2, rest3) = parseAexp rest2 in (EqBexp aexp1 aexp2, rest3)
     "<=" -> let (aexp2, rest3) = parseAexp rest2 in (LeBexp aexp1 aexp2, rest3)
-    _ -> error "Syntax error: Invalid boolean expression"
+    _ -> error $ "Syntax error: Invalid boolean expression " ++ op
 
--- function that takes a list of tokens and returns a tuple with the statement and the remaining tokens
 parseStm :: [String] -> (Stm, [String])
 parseStm [] = (NoopStm, [])
 parseStm ("if":rest) = 
   let (bexp, "then":rest1) = parseBexp rest
-      (stm1, ";":"else":rest2) = parseStm rest1
-      (stm2, rest3) = parseStm rest2
+      (stm1, rest2) = parseStm rest1
+      (stm2, rest3) = case rest2 of
+                        ";":"else":rest2' -> parseStm rest2'
+                        "else":rest2' -> parseStm rest2'
+                        _ -> error "Syntax error: 'if' statement not properly formed"
   in (IfStm bexp stm1 stm2, rest3)
 parseStm ("while" : rest) =
   let (bexp, doToken : rest1) = parseBexp rest
@@ -240,7 +268,6 @@ parseStm ("(":rest) =
   in (block, rest1)
 parseStm _ = error "Syntax error: Invalid statement"
 
--- function that parses a block of statements enclosed in parentheses
 parseBlock :: [String] -> (Stm, [String])
 parseBlock [] = error "Syntax error: Missing closing parenthesis"
 parseBlock (";":")":rest) = (NoopStm, rest)
@@ -269,9 +296,14 @@ testParser programCode = (stack2Str stack, state2Str store)
 
 -- Examples:
 -- testParser "x := 5; x := x - 1;" == ("","x=4")
+-- testParser "x := 0 - 2;" == ("","x=-2")
 -- testParser "if (not True and 2 <= 5 = 3 == 4) then x :=1; else y := 2;" == ("","y=2")
--- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;)" == ("","x=1")
+-- testParser "x := 42; if x <= 43 then x := 1; else (x := 33; x := x+1;);" == ("","x=1")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1;" == ("","x=2")
 -- testParser "x := 42; if x <= 43 then x := 1; else x := 33; x := x+1; z := x+x;" == ("","x=2,z=4")
+-- testParser "x := 44; if x <= 43 then x := 1; else (x := 33; x := x+1;); y := x*2;" == ("","x=34,y=68")
+-- testParser "x := 42; if x <= 43 then (x := 33; x := x+1;) else x := 1;" == ("","x=34")
+-- testParser "if (1 == 0+1 = 2+1 == 3) then x := 1; else x := 2;" == ("","x=1")
+-- testParser "if (1 == 0+1 = (2+1 == 4)) then x := 1; else x := 2;" == ("","x=2")
 -- testParser "x := 2; y := (x - 3)*(4 + 2*3); z := x +x*(2);" == ("","x=2,y=-10,z=6")
 -- testParser "i := 10; fact := 1; while (not(i == 1)) do (fact := fact * i; i := i - 1;);" == ("","fact=3628800,i=1")
