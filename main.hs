@@ -192,10 +192,12 @@ lexer (c:cs)
   | isSpace c = lexer cs  
   | otherwise = lexer cs  
 
--- Update parseAexp to handle parentheses
+
+-- function to parse arithmetic expressions, starting analysis with precedence level 0
 parseAexp :: [String] -> (Aexp, [String])
 parseAexp tokens = parseAexp' tokens 0
 
+-- function to parse arithmetic expressions based on precedence level
 parseAexp' :: [String] -> Int -> (Aexp, [String])
 parseAexp' tokens level
   | level == 3 = parseFactor tokens
@@ -203,6 +205,7 @@ parseAexp' tokens level
       let (left, tokens') = parseAexp' tokens (level + 1)
       in buildExpression left tokens' level
 
+-- function to build an expression based on the operator and current precedence level
 buildExpression :: Aexp -> [String] -> Int -> (Aexp, [String])
 buildExpression left (op:tokens) level
   | op == operator level =
@@ -211,15 +214,18 @@ buildExpression left (op:tokens) level
   | otherwise = (left, op:tokens)
 buildExpression left [] _ = (left, [])
 
+-- functions that returns the operator corresponding to the precedence level
 operator :: Int -> String
 operator level = ["+", "-", "*"] !! level
 
+-- function that applies the operator corresponding to the precedence level to the arithmetic expression
 applyOperator :: Int -> Aexp -> Aexp -> Aexp
 applyOperator level left right
   | level == 0 = AddAexp left right
   | level == 1 = SubAexp left right
   | otherwise = MultAexp left right
 
+-- function to parse factors within arithmetic expressions (numbers, variables, or expressions within parentheses)
 parseFactor :: [String] -> (Aexp, [String])
 parseFactor ("(":rest) =
   let (aexp, rest1) = parseAexp rest
@@ -243,6 +249,7 @@ parseBexp tokens =
     "<=" -> let (aexp2, rest3) = parseAexp rest2 in (LeBexp aexp1 aexp2, rest3)
     _ -> error $ "Syntax error: Invalid boolean expression " ++ op
 
+-- function to parse a statement from a list of tokens, constructing the corresponding statement structure
 parseStm :: [String] -> (Stm, [String])
 parseStm [] = (NoopStm, [])
 parseStm ("if":rest) = 
@@ -268,6 +275,7 @@ parseStm ("(":rest) =
   in (block, rest1)
 parseStm _ = error "Syntax error: Invalid statement"
 
+-- function that handles instructions within parentheses
 parseBlock :: [String] -> (Stm, [String])
 parseBlock [] = error "Syntax error: Missing closing parenthesis"
 parseBlock (";":")":rest) = (NoopStm, rest)
