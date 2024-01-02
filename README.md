@@ -68,5 +68,10 @@ Funções implementadas na Parte 2:
 - `lexer :: String -> [String]`: Função que gera uma lista de tokens a partir da string fornecida como input.
 - `parseStm :: [String] -> (Stm, [String])`: Função que analisa uma lista de tokens e retorna uma instrução (Stm) juntamente com os tokens restantes. Esta função é chamda na função buildData.
 - `parseAexp :: [String] -> (Aexp, [String])`: Função que analisa uma lista de tokens e retorna uma expressão aritmética (Aexp) juntamente com os tokens restantes.
+- `parseAexp' :: [String] -> Int -> (Aexp, [String])`: Função auxiliar para analisar expressões aritméticas com base no nível de precedência.
+- `buildExpression :: Aexp -> [String] -> Int -> (Aexp, [String])`: Função que constrói uma expressão com base no operador e nível de precedência atual.
+- `operator :: Int -> String`: Função que retorna o operador correspondente ao nível de precedência.
+- `applyOperator :: Int -> Aexp -> Aexp -> Aexp`: Função que aplica o operador correspondente ao nível de precedência à expressão aritmética.
+- `parseFactor :: [String] -> (Aexp, [String])`: Função que analisa fatores dentro de expressões aritméticas (números, variáveis ou expressões entre parênteses).
 - `parseBexp :: [String] -> (Bexp, [String])`: Função que analisa uma lista de tokens e retorna uma expressão booleana (Bexp) juntamente com os tokens restantes.
 - `parseBlock :: [String] -> (Stm, [String])`: Função que analisa um bloco de instruções encerradas por parênteses e retorna a instrução correspondente (Stm) juntamente com os tokens restantes.
